@@ -2,14 +2,12 @@ sudo: false
 language: java
 jdk:
   - oraclejdk8
-  - oraclejdk7
 env:
   - TESTFOLDER=batch
   - TESTFOLDER=cdi
   - TESTFOLDER=concurrency
   - TESTFOLDER=ejb
   - TESTFOLDER=el
-  - TESTFOLDER=extra
   - TESTFOLDER=interceptor
   - TESTFOLDER=jacc
   - TESTFOLDER=jaspic
@@ -27,6 +25,6 @@ env:
   - TESTFOLDER=websocket
   
   
-install: mvn install --quiet -DskipTests=true -Dmaven.javadoc.skip=true -B -V
+install: mvn install -DskipTests=true -Dmaven.javadoc.skip=true -B -V
 
-script: cd $TESTFOLDER && mvn -q --fail-at-end install -Pglassfish-embedded-arquillian -B 2>&1
+script: mvn --batch-mode --fail-at-end --projects $TESTFOLDER --also-make-dependents install 2>&1 

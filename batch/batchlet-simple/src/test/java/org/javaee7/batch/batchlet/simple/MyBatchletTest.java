@@ -1,22 +1,23 @@
 package org.javaee7.batch.batchlet.simple;
 
+import static javax.batch.runtime.BatchRuntime.getJobOperator;
+import static javax.batch.runtime.BatchStatus.COMPLETED;
+import static org.jboss.shrinkwrap.api.ArchivePaths.create;
+import static org.jboss.shrinkwrap.api.ShrinkWrap.create;
+import static org.jboss.shrinkwrap.api.asset.EmptyAsset.INSTANCE;
+import static org.junit.Assert.assertEquals;
+
+import java.util.Properties;
+
+import javax.batch.operations.JobOperator;
+import javax.batch.runtime.JobExecution;
+
 import org.javaee7.util.BatchTestHelper;
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.junit.Arquillian;
-import org.jboss.shrinkwrap.api.ArchivePaths;
-import org.jboss.shrinkwrap.api.ShrinkWrap;
-import org.jboss.shrinkwrap.api.asset.EmptyAsset;
 import org.jboss.shrinkwrap.api.spec.WebArchive;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-
-import javax.batch.operations.JobOperator;
-import javax.batch.runtime.BatchRuntime;
-import javax.batch.runtime.BatchStatus;
-import javax.batch.runtime.JobExecution;
-import java.util.Properties;
-
-import static org.junit.Assert.assertEquals;
 
 /**
  * Batchlet is the simplest processing style available in the Batch specification. It's a task oriented step where the
@@ -51,12 +52,21 @@ public class MyBatchletTest {
      */
     @Deployment
     public static WebArchive createDeployment() {
-        WebArchive war = ShrinkWrap.create(WebArchive.class)
+        
+        System.out.println("************************************************************");
+        WebArchive war = null;
+        try {
+        war = create(WebArchive.class)
             .addClass(BatchTestHelper.class)
             .addClass(MyBatchlet.class)
-            .addAsWebInfResource(EmptyAsset.INSTANCE, ArchivePaths.create("beans.xml"))
+            .addAsWebInfResource(INSTANCE, create("beans.xml"))
             .addAsResource("META-INF/batch-jobs/myJob.xml");
+        
         System.out.println(war.toString(true));
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
+        
         return war;
     }
 
@@ -69,13 +79,14 @@ public class MyBatchletTest {
      */
     @Test
     public void testBatchletProcess() throws Exception {
-        JobOperator jobOperator = BatchRuntime.getJobOperator();
+        
+        JobOperator jobOperator = getJobOperator();
         Long executionId = jobOperator.start("myJob", new Properties());
         JobExecution jobExecution = jobOperator.getJobExecution(executionId);
-
+        
         jobExecution = BatchTestHelper.keepTestAlive(jobExecution);
 
         // <1> Job should be completed.
-        assertEquals(jobExecution.getBatchStatus(), BatchStatus.COMPLETED);
+        assertEquals(jobExecution.getBatchStatus(), COMPLETED);
     }
 }

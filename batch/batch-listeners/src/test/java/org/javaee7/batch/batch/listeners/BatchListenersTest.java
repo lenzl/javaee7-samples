@@ -1,5 +1,20 @@
 package org.javaee7.batch.batch.listeners;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static javax.batch.runtime.BatchRuntime.getJobOperator;
+import static javax.batch.runtime.BatchStatus.COMPLETED;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+
+import javax.batch.operations.JobOperator;
+import javax.batch.runtime.JobExecution;
+import javax.batch.runtime.Metric;
+import javax.batch.runtime.StepExecution;
+
 import org.javaee7.util.BatchTestHelper;
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.junit.Arquillian;
@@ -9,16 +24,6 @@ import org.jboss.shrinkwrap.api.asset.EmptyAsset;
 import org.jboss.shrinkwrap.api.spec.WebArchive;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-
-import javax.batch.operations.JobOperator;
-import javax.batch.runtime.*;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.concurrent.TimeUnit;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 /**
  * The Batch specification, provides several listeners to notify about specific event occurring during the batch
@@ -140,10 +145,11 @@ public class BatchListenersTest {
      */
     @Test
     public void testBatchListeners() throws Exception {
-        JobOperator jobOperator = BatchRuntime.getJobOperator();
+        
+        JobOperator jobOperator = getJobOperator();
         Long executionId = jobOperator.start("myJob", new Properties());
         JobExecution jobExecution = jobOperator.getJobExecution(executionId);
-
+        
         jobExecution = BatchTestHelper.keepTestAlive(jobExecution);
 
         List<StepExecution> stepExecutions = jobOperator.getStepExecutions(executionId);
@@ -157,7 +163,7 @@ public class BatchListenersTest {
             }
         }
 
-        assertTrue(BatchListenerRecorder.batchListenersCountDownLatch.await(0, TimeUnit.SECONDS));
-        assertEquals(jobExecution.getBatchStatus(), BatchStatus.COMPLETED);
+        assertTrue(BatchListenerRecorder.batchListenersCountDownLatch.await(0, SECONDS));
+        assertEquals(jobExecution.getBatchStatus(), COMPLETED);
     }
 }

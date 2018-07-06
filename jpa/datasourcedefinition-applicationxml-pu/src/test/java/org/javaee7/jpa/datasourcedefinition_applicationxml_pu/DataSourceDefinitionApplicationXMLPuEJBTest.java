@@ -1,11 +1,13 @@
 package org.javaee7.jpa.datasourcedefinition_applicationxml_pu;
 
+import static org.jboss.shrinkwrap.api.ArchivePaths.create;
 import static org.jboss.shrinkwrap.api.ShrinkWrap.create;
+import static org.jboss.shrinkwrap.api.asset.EmptyAsset.INSTANCE;
 import static org.junit.Assert.assertTrue;
 
 import java.util.List;
 
-import javax.inject.Inject;
+import javax.enterprise.inject.spi.CDI;
 
 import org.javaee7.jpa.datasourcedefinition_applicationxml_pu.entity.TestEntity;
 import org.javaee7.jpa.datasourcedefinition_applicationxml_pu.service.TestService;
@@ -20,27 +22,24 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 /**
- * This tests that a data source defined via the data-source element in an EAR's application.xml can be used by JPA. 
+ * This tests that a data source defined via the data-source element in an EAR's application.xml can be used by JPA.
  * <p>
  * In this test the persistence unit is defined inside an EJB module (.jar)
- * 
+ *
  * <p>
  * The actual JPA code being run is not specifically relevant; any kind of JPA operation that
- * uses the data source is okay here. 
- * 
+ * uses the data source is okay here.
+ *
  * @author Arjan Tijms
  */
 @RunWith(Arquillian.class)
 public class DataSourceDefinitionApplicationXMLPuEJBTest {
 
-    @Inject
-    private TestService testService;
-
     @Deployment
     public static Archive<?> deploy() {
         return
         // EAR archive
-        create(EnterpriseArchive.class, "test.ear")
+        create(EnterpriseArchive.class, "testEAR.ear")
 
             // Data-source is defined here
             .setApplicationXML("application-ejb.xml")
@@ -54,7 +53,7 @@ public class DataSourceDefinitionApplicationXMLPuEJBTest {
 
             // EJB module
             .addAsModule(
-                create(JavaArchive.class, "test.jar")
+                create(JavaArchive.class, "testEJB.jar")
 
                     // Persistence unit is defined here, references data source
                     .addAsResource("META-INF/persistence.xml")
@@ -69,12 +68,15 @@ public class DataSourceDefinitionApplicationXMLPuEJBTest {
                 create(WebArchive.class, "test.war")
                     // This class containing the test
                     .addClass(DataSourceDefinitionApplicationXMLPuEJBTest.class)
+                    .addAsWebInfResource(INSTANCE, create("beans.xml"))
 
             );
     }
 
     @Test
     public void insertAndQueryEntity() throws Exception {
+
+        TestService testService = CDI.current().select(TestService.class).get();
 
         testService.saveNewEntity();
 

@@ -1,5 +1,20 @@
 package org.javaee7.batch.multiple.steps;
 
+import static javax.batch.runtime.BatchRuntime.getJobOperator;
+import static javax.batch.runtime.BatchStatus.COMPLETED;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+
+import javax.batch.operations.JobOperator;
+import javax.batch.runtime.JobExecution;
+import javax.batch.runtime.Metric;
+import javax.batch.runtime.StepExecution;
+
 import org.javaee7.util.BatchTestHelper;
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.junit.Arquillian;
@@ -9,16 +24,6 @@ import org.jboss.shrinkwrap.api.asset.EmptyAsset;
 import org.jboss.shrinkwrap.api.spec.WebArchive;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-
-import javax.batch.operations.JobOperator;
-import javax.batch.runtime.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
 
 /**
  * The Batch specification allows you to implement process workflow using a Job Specification Language (JSL). In this
@@ -63,10 +68,10 @@ public class BatchMultipleStepsTest {
      */
     @Test
     public void testBatchMultipleSteps() throws Exception {
-        JobOperator jobOperator = BatchRuntime.getJobOperator();
+        JobOperator jobOperator = getJobOperator();
         Long executionId = jobOperator.start("myJob", new Properties());
         JobExecution jobExecution = jobOperator.getJobExecution(executionId);
-
+        
         jobExecution = BatchTestHelper.keepTestAlive(jobExecution);
 
         List<StepExecution> stepExecutions = jobOperator.getStepExecutions(executionId);
@@ -84,9 +89,11 @@ public class BatchMultipleStepsTest {
 
         // <1> Make sure all the steps were executed.
         assertEquals(2, stepExecutions.size());
+        
         // <2> Make sure all the steps were executed in order of declaration.
         assertArrayEquals(new String[] { "step1", "step2" }, executedSteps.toArray());
+        
         // <3> Job should be completed.
-        assertEquals(BatchStatus.COMPLETED, jobExecution.getBatchStatus());
+        assertEquals(COMPLETED, jobExecution.getBatchStatus());
     }
 }

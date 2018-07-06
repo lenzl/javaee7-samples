@@ -1,19 +1,28 @@
 package org.javaee7.batch.samples.scheduling;
 
+import static com.jayway.awaitility.Awaitility.await;
+import static com.jayway.awaitility.Duration.FIVE_HUNDRED_MILLISECONDS;
+import static com.jayway.awaitility.Duration.ONE_MINUTE;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static javax.batch.runtime.BatchRuntime.getJobOperator;
+import static javax.batch.runtime.BatchStatus.COMPLETED;
+import static javax.batch.runtime.BatchStatus.STARTED;
+import static org.javaee7.Libraries.awaitability;
+import static org.javaee7.batch.samples.scheduling.MyStepListener.countDownLatch;
+import static org.jboss.shrinkwrap.api.ShrinkWrap.create;
+import static org.jboss.shrinkwrap.api.asset.EmptyAsset.INSTANCE;
+import static org.junit.Assert.assertEquals;
+
+import java.util.concurrent.Callable;
+
+import javax.batch.runtime.JobExecution;
+
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.junit.Arquillian;
 import org.jboss.shrinkwrap.api.ArchivePaths;
-import org.jboss.shrinkwrap.api.ShrinkWrap;
-import org.jboss.shrinkwrap.api.asset.EmptyAsset;
 import org.jboss.shrinkwrap.api.spec.WebArchive;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-
-import javax.batch.runtime.BatchRuntime;
-import javax.batch.runtime.BatchStatus;
-import java.util.concurrent.TimeUnit;
-
-import static org.junit.Assert.assertEquals;
 
 /**
  * The Batch specification does not offer anything to schedule jobs. However, the Java EE plataform offer a few ways
@@ -30,6 +39,7 @@ import static org.junit.Assert.assertEquals;
  */
 @RunWith(Arquillian.class)
 public class TimerScheduleBatchTest {
+    
     /**
      * We're just going to deploy the application as a +web archive+. Note the inclusion of the following files:
      *
@@ -45,16 +55,19 @@ public class TimerScheduleBatchTest {
      */
     @Deployment
     public static WebArchive createDeployment() {
-        WebArchive war = ShrinkWrap.create(WebArchive.class)
+        WebArchive war = create(WebArchive.class)
             .addClasses(
-                MyBatchlet.class,
                 MyJob.class,
+                MyBatchlet.class,
+                MyStepListener.class,
                 AbstractTimerBatch.class,
                 MyTimerScheduleAlternative.class)
-            .addAsWebInfResource(EmptyAsset.INSTANCE, ArchivePaths.create("beans.xml"))
-            .addAsResource("META-INF/batch-jobs/myJob.xml");
+            .addAsWebInfResource(INSTANCE, ArchivePaths.create("beans.xml"))
+            .addAsResource("META-INF/batch-jobs/myJob.xml")
+            .addAsLibraries(awaitability());
 
         System.out.println(war.toString(true));
+        
         return war;
     }
 
@@ -68,14 +81,28 @@ public class TimerScheduleBatchTest {
      */
     @Test
     public void testTimeScheduleBatch() throws Exception {
-        MyTimerScheduleAlternative.timerScheduleCountDownLatch.await(90, TimeUnit.SECONDS);
+        countDownLatch.await(90, SECONDS);
 
-        assertEquals(0, MyTimerScheduleAlternative.timerScheduleCountDownLatch.getCount());
+        assertEquals(0, countDownLatch.getCount());
         assertEquals(3, MyTimerScheduleAlternative.executedBatchs.size());
+        
+        final JobExecution lastExecution = getJobOperator().getJobExecution(MyTimerScheduleAlternative.executedBatchs.get(2));
+        
+        await().atMost(ONE_MINUTE)
+               .with().pollInterval(FIVE_HUNDRED_MILLISECONDS)
+               .until(                                                                                                                                                                                      new Callable<Boolean>() { @Override public Boolean call() throws Exception {
+                   return lastExecution.getBatchStatus() != STARTED;                                                                                                                                        }}
+                );
 
         for (Long executedBatch : MyTimerScheduleAlternative.executedBatchs) {
-            assertEquals(BatchStatus.COMPLETED,
-                BatchRuntime.getJobOperator().getJobExecution(executedBatch).getBatchStatus());
+            
+            System.out.println(
+                "TimerScheduleBatchTest checking batch " + executedBatch +
+                " batch statuc = " + getJobOperator().getJobExecution(executedBatch).getBatchStatus());
+            
+            assertEquals(
+                COMPLETED,
+                getJobOperator().getJobExecution(executedBatch).getBatchStatus());
         }
     }
 }
